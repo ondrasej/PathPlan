@@ -11,11 +11,18 @@ import Debug.Trace
 -- | A coodrinates of a single map cell.
 type MapPoint = (Int, Int)
 -- | A complete map (a rectangluar area of square cells, which are
---  either accessible or not accessible.
+--  either accessible or not accessible). The map is implemented as
+--  a 2D array indexed by MapPoint types; the array contains True if
+--  the cell is accessible; it contains False if the cell is not
+--  accessible.
 type MapCells = Array MapPoint Bool
 
--- | The position of the agent on the map.
-data Position = Pos Int MapPoint deriving (Eq, Ord, Read, Show)
+-- | The type for ID's of the agents in the path planning problem.
+newtype AgentId = AgentId Int deriving (Eq, Ord, Read, Show)
+
+-- | The position of the agent on the map. The position is implemented
+-- as a record that contains the ID of the agent, and its position.
+data Position = Pos AgentId MapPoint deriving (Eq, Ord, Read, Show)
 -- | The set of positions of robots on the map.
 type Positions = Set.Set Position
 -- | The set of conflicting positions.
@@ -25,7 +32,7 @@ type PositionConflicts = Set.Set (Position, Position)
 data PositionLayer = PL MapCells Positions PositionConflicts deriving (Eq, Read, Show)
 
 -- | Contains information about a single node.
-data Move = Mv Int MapPoint MapPoint deriving (Eq, Ord, Read, Show)
+data Move = Mv AgentId MapPoint MapPoint deriving (Eq, Ord, Read, Show)
 -- | The set of moves.
 type Moves = Set.Set Move
 -- | The set of conflicting moves.
@@ -93,7 +100,7 @@ cross xs ys = concatMap (make_pairs ys) xs
 
 -- | Splits the list of agent positions into a list of agent IDs and a
 -- list of coordinates.
-split_positions :: [Position] -> ([Int], [MapPoint])
+split_positions :: [Position] -> ([AgentId], [MapPoint])
 split_positions ps = unzip $ map split_single ps
     where
         split_single (Pos id pos) = (id, pos)
@@ -253,8 +260,8 @@ build_graph initial goals = (PF initial layer_list)
 
 build_positions :: MapCells -> [AgentPath] -> ([Position], [Position])
 build_positions map_cells agents =
-    unzip $ map (make_position) (zip [1..] agents)
-    where make_position :: (Int, AgentPath) -> (Position, Position)
+    unzip $ map (make_position) (zip (map (AgentId) [1..]) agents)
+    where make_position :: (AgentId, AgentPath) -> (Position, Position)
           make_position (n, Agent start final)
                 | (not$ map_cells!start) = (error$ "The initial position of agent " ++ (show n) ++ " is blocked")
                 | (not$ map_cells!final) = (error$ "The final position of agent " ++ (show n) ++ " is blocked")
