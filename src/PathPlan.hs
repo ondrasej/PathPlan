@@ -306,8 +306,8 @@ build_initial_layer cells positions
         conflicts = Set.empty
         (pos_points, pos_ids) = split_positions positions
 
-build_graph :: PositionLayer -> [Position] -> Maybe [[Move]]
-build_graph initial goals = build_layers 1 [] initial
+find_path :: PositionLayer -> [Position] -> Maybe [[Move]]
+find_path initial goals = build_layers 1 [] initial
     where
         build_layers :: Integer -> [(MoveLayer, PositionLayer)] -> PositionLayer -> Maybe [[Move]]
         build_layers depth reverse_layers_acc prev_pos_layer =
@@ -447,7 +447,7 @@ main = do
     PP map agents <- load_map
     let (positions, goals) = build_positions map agents
     let initial_layer = build_initial_layer map positions
-    let path = build_graph initial_layer goals
+    let path = find_path initial_layer goals
     hPutStrLn stderr (show initial_layer)
     case path of
         Nothing   -> hPutStrLn stderr "No path was found"
