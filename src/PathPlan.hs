@@ -129,8 +129,8 @@ get_position_agent_id :: Position -> AgentId
 get_position_agent_id (Pos agent_id _) = agent_id
 
 -- | Checks if the move starts at the given position.
---starts_on_position :: MapPoint -> Move -> Bool
---starts_on_position pos (Mv _ start _) = pos == start
+starts_on_position :: MapPoint -> Move -> Bool
+starts_on_position pos (Mv _ start _) = pos == start
 
 ends_on_position :: MapPoint -> Move -> Bool
 ends_on_position pos (Mv _ _ end) = pos == end
@@ -402,10 +402,6 @@ main = do
     let initial_layer = build_initial_layer map positions
     let path = build_graph initial_layer goals
     print initial_layer
-    --print $ length layers
-    --hPutStrLn stderr "Extracting path..."
-    --let path = extract_paths graph goals
     case path of
         Nothing   -> hPutStrLn stderr "No path was found"
         Just p    -> print p
---print graph
