@@ -65,6 +65,13 @@ sortByKey get_key items = sortBy compareKeys items
     where
         compareKeys a1 a2 = compare (get_key a1) (get_key a2)
 
+num_positions_on_map :: MapCells -> Integer
+num_positions_on_map map = width * height
+    where
+        ((left, top), (right, bottom)) = bounds map
+        width = fromIntegral (right - left + 1)
+        height = fromIntegral (bottom - top + 1)
+
 -- | Checks if the given point on the map is accessible (i.e. that there
 --  is not a wall.
 is_free :: MapCells -> (Int, Int) -> Bool
@@ -278,9 +285,10 @@ build_graph initial goals = build_layers 1 [] initial
                 new_reverse_layers_acc = (move_layer, pos_layer):reverse_layers_acc
                 move_layer = build_move_layer prev_pos_layer
                 pos_layer = build_position_layer move_layer
-                is_final (PL _ positions conflicts) = (trace ("contains_goals: " ++ (show contains_goals) ++ "\n") contains_goals && trace ("no_goals_conflicts: " ++ (show no_goal_conflicts) ++ "\n\n") no_goal_conflicts
+                is_final (PL _ positions conflicts) = (contains_goals
+                                                        && no_goal_conflicts
                                                         && extracted_path /= Nothing)
-                                                      -- || (pos_layer == prev_pos_layer)
+                                                      || max_path_length < depth
                     where
                         contains_goals = all (\pos -> Set.member pos positions) goals
                         no_goal_conflicts = all (no_conflict) $ pairs goals
@@ -289,6 +297,10 @@ build_graph initial goals = build_layers 1 [] initial
                                     | pos1 == pos2      = False
                                     | otherwise         = not$ Set.member (pos1, pos2) conflicts
                 extracted_path = extract_paths new_reverse_layers_acc goals
+        max_path_length = num_agents * (num_positions_on_map the_map)
+            where
+                num_agents = fromIntegral$ length goals
+                PL the_map _ _ = initial
 
 build_positions :: MapCells -> [AgentPath] -> ([Position], [Position])
 build_positions map_cells agents =
@@ -401,7 +413,7 @@ main = do
     let (positions, goals) = build_positions map agents
     let initial_layer = build_initial_layer map positions
     let path = build_graph initial_layer goals
-    print initial_layer
+    hPutStrLn stderr (show initial_layer)
     case path of
         Nothing   -> hPutStrLn stderr "No path was found"
         Just p    -> print p
