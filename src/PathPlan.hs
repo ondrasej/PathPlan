@@ -129,14 +129,17 @@ get_position_agent_id :: Position -> AgentId
 get_position_agent_id (Pos agent_id _) = agent_id
 
 -- | Checks if the move starts at the given position.
-starts_on_position :: MapPoint -> Move -> Bool
-starts_on_position pos (Mv _ start _) = pos == start
+--starts_on_position :: MapPoint -> Move -> Bool
+--starts_on_position pos (Mv _ start _) = pos == start
+
+ends_on_position :: MapPoint -> Move -> Bool
+ends_on_position pos (Mv _ _ end) = pos == end
 
 -- | Extracts the list of target positions from the list of moves.
 extract_positions_from_moves :: [Move] -> [Position]
 extract_positions_from_moves moves = map (extract_position) moves
     where
-        extract_position (Mv agent_id from to) = Pos agent_id to
+        extract_position (Mv agent_id from to) = Pos agent_id from
 
 -- | Builds a layer of the planning graphs that contains possible moves
 -- based on the 'position layer'.
@@ -174,7 +177,7 @@ build_move_layer (PL cells prev_positions prev_conflicts) =
             | pos_a1 == pos_b1          = True
             | pos_a2 == pos_b2          = True
             | (pos_a1 == pos_b2)
-                && (pos_a2 == pos_b1)   = True
+                || (pos_a2 == pos_b1)   = True
             | otherwise                 = False
 
 -- | Builds a layer of the planning graph that contains possible positions
@@ -261,26 +264,31 @@ build_initial_layer cells positions
         conflicts = Set.empty
         (pos_points, pos_ids) = split_positions positions
 
-build_graph :: PositionLayer -> [Position] -> PathFinding
-build_graph initial goals = (PF initial layer_list)
+build_graph :: PositionLayer -> [Position] -> Maybe [Move]
+build_graph initial goals = build_layers 1 [] initial
     where
-        layer_list = build_layers initial
-        build_layers :: PositionLayer -> [(MoveLayer, PositionLayer)]
-        build_layers pos = trace ("Building a layer from" ++ (show pos) ++ "\n\n") $ (move_layer, pos_layer):next
+        build_layers :: Integer -> [(MoveLayer, PositionLayer)] -> PositionLayer -> Maybe [Move]
+        build_layers depth reverse_layers_acc prev_pos_layer =
+            trace ("Building a layer from" ++ (show prev_pos_layer) ++ "\n\n") $
+            if is_final pos_layer
+              then extracted_path
+              else trace ("Path not found at depth " ++ (show depth) ++ "\n\n")$
+                   build_layers (depth + 1) new_reverse_layers_acc pos_layer
             where
-                move_layer = build_move_layer pos
+                new_reverse_layers_acc = (move_layer, pos_layer):reverse_layers_acc
+                move_layer = build_move_layer prev_pos_layer
                 pos_layer = build_position_layer move_layer
-                next = if is_final pos_layer
-                        then []
-                        else (build_layers pos_layer)
-                is_final (PL _ positions conflicts) = {- (contains_goals && (not goal_conflicts)) ||  -}(pos_layer == pos)
+                is_final (PL _ positions conflicts) = (trace ("contains_goals: " ++ (show contains_goals) ++ "\n") contains_goals && trace ("no_goals_conflicts: " ++ (show no_goal_conflicts) ++ "\n\n") no_goal_conflicts
+                                                        && extracted_path /= Nothing)
+                                                      -- || (pos_layer == prev_pos_layer)
                     where
                         contains_goals = all (\pos -> Set.member pos positions) goals
-                        goal_conflicts = all (no_conflict) $ pairs goals
+                        no_goal_conflicts = all (no_conflict) $ pairs goals
                             where
                                 no_conflict (pos1, pos2)
                                     | pos1 == pos2      = False
                                     | otherwise         = not$ Set.member (pos1, pos2) conflicts
+                extracted_path = extract_paths new_reverse_layers_acc goals
 
 build_positions :: MapCells -> [AgentPath] -> ([Position], [Position])
 build_positions map_cells agents =
@@ -331,20 +339,18 @@ combinations lists =
 -- moves may be no-op moves (and they might be important for synchronizing the
 -- paths).
 -- If no such path was found, this method returns None.
-extract_paths :: PathFinding -> [Position] -> Maybe [Move]
-extract_paths (PF _ layer_list) goals =
+extract_paths :: [(MoveLayer, PositionLayer)] -> [Position] -> Maybe [Move]
+extract_paths reverse_layers goals =
     case possible_paths of
         []       -> Nothing
-        (path:_) -> Just path
+        paths@(path:_) -> trace ("Available paths: " ++ (show paths) ++ "\n\n") $ Just path
     where
         possible_paths = extract_paths' goals reverse_layers []
-
-        reverse_layers = reverse layer_list
         -- | Extracts paths for the current positions of the agents.
         extract_paths' :: [Position] -> [(MoveLayer, PositionLayer)] -> [[Move]] -> [[Move]]
         extract_paths' [] _ _ = []
         extract_paths' _ [] moves = do
-            return $ concat $ reverse moves
+            return $ concat $ moves
         extract_paths' current_positions layers moves = do
             move_combination <- possible_move_combinations
             if has_move_conflicts move_combination
@@ -360,7 +366,7 @@ extract_paths (PF _ layer_list) goals =
 
                 available_moves_by_agent = map (extract_available_moves) $ moves_with_positions
 
-                extract_available_moves (Pos _ pos, moves) = filter (starts_on_position pos) moves
+                extract_available_moves (Pos _ pos, moves) = filter (ends_on_position pos) moves
 
                 moves_with_positions = zip sorted_positions all_moves_by_agent
                 sorted_positions = sortByKey (get_position_agent_id) current_positions
@@ -394,12 +400,11 @@ main = do
     PP map agents <- load_map
     let (positions, goals) = build_positions map agents
     let initial_layer = build_initial_layer map positions
-    let graph = build_graph initial_layer goals
-    let (PF initial layers) = graph
+    let path = build_graph initial_layer goals
     print initial_layer
-    print $ length layers
-    hPutStrLn stderr "Extracting path..."
-    let path = extract_paths graph goals
+    --print $ length layers
+    --hPutStrLn stderr "Extracting path..."
+    --let path = extract_paths graph goals
     case path of
         Nothing   -> hPutStrLn stderr "No path was found"
         Just p    -> print p
