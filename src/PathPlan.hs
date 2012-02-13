@@ -114,6 +114,14 @@ has_duplicate xs =
         zipped = zip sorted (tail sorted)
         sorted = sort xs
 
+-- | Extracts the agent ID from a move specification.
+get_move_agent_id :: Move -> AgentId
+get_move_agent_id (Mv agent_id _ _) = agent_id
+
+-- | Extracts the agent ID from a position specification.
+get_position_agent_id :: Position -> AgentId
+get_position_agent_id (Pos agent_id _) = agent_id
+
 -- | Builds a layer of the planning graphs that contains possible moves
 -- based on the 'position layer'.
 build_move_layer :: PositionLayer -> MoveLayer
@@ -283,7 +291,9 @@ partitionBy key_function items =
 
 -- | Generates the list of all combinations of items from the given list of
 -- sublists. The result is a list of sublists, where in each sublist each
--- element is taken from a different sublist in the original list.
+-- element is taken from a different sublist in the original list. Assumes
+-- that both the outer list and the sublists contain a finite number of
+-- elements.
 --
 -- Example:
 -- > combinations [[1, 2], [3, 4]]
