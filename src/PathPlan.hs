@@ -7,6 +7,7 @@ import Data.List
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Set as Set
 import Debug.Trace
+import System.IO
 
 -- | A coodrinates of a single map cell.
 type MapPoint = (Int, Int)
@@ -58,6 +59,11 @@ data PathFinding = PF PositionLayer [(MoveLayer, PositionLayer)] deriving Show
 
 infixl 0 |>
 x |> f = f x
+
+sortByKey :: Ord key => (a -> key) -> [a] -> [a]
+sortByKey get_key items = sortBy compareKeys items
+    where
+        compareKeys a1 a2 = compare (get_key a1) (get_key a2)
 
 -- | Checks if the given point on the map is accessible (i.e. that there
 --  is not a wall.
@@ -121,6 +127,16 @@ get_move_agent_id (Mv agent_id _ _) = agent_id
 -- | Extracts the agent ID from a position specification.
 get_position_agent_id :: Position -> AgentId
 get_position_agent_id (Pos agent_id _) = agent_id
+
+-- | Checks if the move starts at the given position.
+starts_on_position :: MapPoint -> Move -> Bool
+starts_on_position pos (Mv _ start _) = pos == start
+
+-- | Extracts the list of target positions from the list of moves.
+extract_positions_from_moves :: [Move] -> [Position]
+extract_positions_from_moves moves = map (extract_position) moves
+    where
+        extract_position (Mv agent_id from to) = Pos agent_id to
 
 -- | Builds a layer of the planning graphs that contains possible moves
 -- based on the 'position layer'.
@@ -308,6 +324,51 @@ combinations lists =
             item <- l
             combinations' (item:acc) ls
 
+-- | Extracts paths for the agents from the planning graph. If a non-conflicting
+-- path for all agents is found, this path is returned as a list of moves. The
+-- moves in the list are partially ordered. There is the same amount of moves
+-- for each agent, regardless of the length of their path on the map; some of the
+-- moves may be no-op moves (and they might be important for synchronizing the
+-- paths).
+-- If no such path was found, this method returns None.
+extract_paths :: PathFinding -> [Position] -> Maybe [Move]
+extract_paths (PF _ layer_list) goals =
+    case possible_paths of
+        []       -> Nothing
+        (path:_) -> Just path
+    where
+        possible_paths = extract_paths' goals reverse_layers []
+
+        reverse_layers = reverse layer_list
+        -- | Extracts paths for the current positions of the agents.
+        extract_paths' :: [Position] -> [(MoveLayer, PositionLayer)] -> [[Move]] -> [[Move]]
+        extract_paths' [] _ _ = []
+        extract_paths' _ [] moves = do
+            return $ concat $ reverse moves
+        extract_paths' current_positions layers moves = do
+            move_combination <- possible_move_combinations
+            if has_move_conflicts move_combination
+              then fail "Conflicts in the moves"
+              else do
+                let new_positions = extract_positions_from_moves move_combination
+                extract_paths' new_positions next_layers (move_combination:moves)
+            where
+                has_move_conflicts move_list = any (is_move_conflict) (pairs move_list)
+                is_move_conflict move_pair = Set.member move_pair move_conflicts
+
+                possible_move_combinations = combinations available_moves_by_agent
+
+                available_moves_by_agent = map (extract_available_moves) $ moves_with_positions
+
+                extract_available_moves (Pos _ pos, moves) = filter (starts_on_position pos) moves
+
+                moves_with_positions = zip sorted_positions all_moves_by_agent
+                sorted_positions = sortByKey (get_position_agent_id) current_positions
+
+                all_moves_by_agent = partitionBy (get_move_agent_id) (Set.toList all_moves)
+                ML _ all_moves move_conflicts = current_move_layer
+                (current_move_layer, current_pos_layer):next_layers = layers
+
 -- | Loads the initial positions and the destinations of the agents from
 --  the standard input, as well as the map. Returns an instance of the
 --  pathfinding problem created from the input.
@@ -337,4 +398,9 @@ main = do
     let (PF initial layers) = graph
     print initial_layer
     print $ length layers
+    hPutStrLn stderr "Extracting path..."
+    let path = extract_paths graph goals
+    case path of
+        Nothing   -> hPutStrLn stderr "No path was found"
+        Just p    -> print p
 --print graph
