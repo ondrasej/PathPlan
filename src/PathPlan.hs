@@ -306,10 +306,10 @@ build_initial_layer cells positions
         conflicts = Set.empty
         (pos_points, pos_ids) = split_positions positions
 
-build_graph :: PositionLayer -> [Position] -> Maybe [Move]
+build_graph :: PositionLayer -> [Position] -> Maybe [[Move]]
 build_graph initial goals = build_layers 1 [] initial
     where
-        build_layers :: Integer -> [(MoveLayer, PositionLayer)] -> PositionLayer -> Maybe [Move]
+        build_layers :: Integer -> [(MoveLayer, PositionLayer)] -> PositionLayer -> Maybe [[Move]]
         build_layers depth reverse_layers_acc prev_pos_layer =
             trace ("Building a layer from" ++ (show prev_pos_layer) ++ "\n\n") $
             if is_final pos_layer
@@ -386,18 +386,18 @@ combinations lists =
 -- moves may be no-op moves (and they might be important for synchronizing the
 -- paths).
 -- If no such path was found, this method returns None.
-extract_paths :: [(MoveLayer, PositionLayer)] -> [Position] -> Maybe [Move]
+extract_paths :: [(MoveLayer, PositionLayer)] -> [Position] -> Maybe [[Move]]
 extract_paths reverse_layers goals =
     case possible_paths of
-        []       -> Nothing
+        []             -> Nothing
         paths@(path:_) -> trace ("Available paths: " ++ (show paths) ++ "\n\n") $ Just path
     where
         possible_paths = extract_paths' goals reverse_layers []
         -- | Extracts paths for the current positions of the agents.
-        extract_paths' :: [Position] -> [(MoveLayer, PositionLayer)] -> [[Move]] -> [[Move]]
+        extract_paths' :: [Position] -> [(MoveLayer, PositionLayer)] -> [[Move]] -> [[[Move]]]
         extract_paths' [] _ _ = []
         extract_paths' _ [] moves = do
-            return $ concat $ moves
+            return $ moves
         extract_paths' current_positions layers moves = do
             move_combination <- possible_move_combinations
             if has_move_conflicts move_combination
