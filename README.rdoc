@@ -1,0 +1,22 @@
+= PathPlan
+
+A path planning algorithm for multiple agents in a 2D world. The idea
+of the planner is based on the GraphPlan algorithm (for more details
+on the algorithm, see http://www.cs.cmu.edu/~avrim/graphplan.html). The
+planner.
+
+In the current implementation, the path extraction is implemented the
+simplest possible way by backtracking without caching conflicts
+discovered during plan extraction. Also, the detection of situations
+where no solution exists is implemented by limiting the depth of the
+graph with the number of cells on the map. This is not an effective
+bound (and I'm not quite sure it really is a bound, but it should work
+OK for most cases).
+
+== Usage
+
+The planner reads the problem specification from standard input, writes
+the plan to standard output and information about the planning process
+to stderr.
+
+For example input, see the files in test/
