@@ -306,6 +306,9 @@ build_initial_layer cells positions
         conflicts = Set.empty
         (pos_points, pos_ids) = split_positions positions
 
+-- | Finds the paths. Builds the planning graph and runs the plan extraction
+-- on the planning graph. Terminates when a path is found, or when the maximum
+-- size of the graph is reached.
 find_path :: PositionLayer -> [Position] -> Maybe [[Move]]
 find_path initial goals = build_layers 1 [] initial
     where
@@ -337,6 +340,8 @@ find_path initial goals = build_layers 1 [] initial
                 num_agents = fromIntegral$ length goals
                 PL the_map _ _ = initial
 
+-- | Extracts the start and end positions of agents, and checks that their
+-- positions are not blocked.
 build_positions :: MapCells -> [AgentPath] -> ([Position], [Position])
 build_positions map_cells agents =
     unzip $ map (make_position) (zip (map (AgentId) [1..]) agents)
