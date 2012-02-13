@@ -267,6 +267,37 @@ build_positions map_cells agents =
                 | (not$ map_cells!final) = (error$ "The final position of agent " ++ (show n) ++ " is blocked")
                 | otherwise         = (Pos n start, Pos n final)
 
+-- | Partitions the elements of the list 'items' by the value returned by the
+-- function key_function. The result of the operation is a partitioning of items
+-- into groups, where the items in each groups have the same value of key_function.
+--
+-- Example:
+-- > partitionBy (fst) [(1, 2), (2, 3), (1, 4), (2, 5)]
+-- > [[(1, 2), (1, 4)], [(2, 3), (2, 5)]]
+partitionBy :: Ord b => (a -> b) -> [a] -> [[a]]
+partitionBy key_function items =
+    groupBy key_equals $ sortBy compare_key $ items
+    where
+        compare_key x y = compare (key_function x) (key_function y)
+        key_equals x y = (key_function x) == (key_function y)
+
+-- | Generates the list of all combinations of items from the given list of
+-- sublists. The result is a list of sublists, where in each sublist each
+-- element is taken from a different sublist in the original list.
+--
+-- Example:
+-- > combinations [[1, 2], [3, 4]]
+-- > [[1, 3], [1, 4], [2, 3], [2, 4]]
+combinations :: [[a]] -> [[a]]
+combinations lists =
+    combinations' [] lists
+    where
+        combinations' acc [] = do
+            return $ reverse acc
+        combinations' acc (l:ls) = do
+            item <- l
+            combinations' (item:acc) ls
+
 -- | Loads the initial positions and the destinations of the agents from
 --  the standard input, as well as the map. Returns an instance of the
 --  pathfinding problem created from the input.
