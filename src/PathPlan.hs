@@ -92,11 +92,13 @@ data PathFinding = PF PositionLayer [(MoveLayer, PositionLayer)] deriving Show
 infixl 0 |>
 x |> f = f x
 
+-- | Sorts the items in a list according to a key provided by a function.
 sortByKey :: Ord key => (a -> key) -> [a] -> [a]
 sortByKey get_key items = sortBy compareKeys items
     where
         compareKeys a1 a2 = compare (get_key a1) (get_key a2)
 
+-- | Calculates the number of elements on the map.
 num_positions_on_map :: MapCells -> Integer
 num_positions_on_map map = width * height
     where
@@ -171,6 +173,7 @@ get_position_agent_id (Pos agent_id _) = agent_id
 starts_on_position :: MapPoint -> Move -> Bool
 starts_on_position pos (Mv _ start _) = pos == start
 
+-- | Checks if the move ends at the given position.
 ends_on_position :: MapPoint -> Move -> Bool
 ends_on_position pos (Mv _ _ end) = pos == end
 
