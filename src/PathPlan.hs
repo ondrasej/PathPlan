@@ -1,3 +1,35 @@
+-- Copyright 2012 Ondrej Sykora
+--
+-- This file is part of PathPlan.
+--
+-- PathPlan is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- PathPlan is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with PathPlan. If not, see <http://www.gnu.org/licenses/>.
+
+
+-- A path planning algorithm for multiple agents in a 2D world. The idea
+-- of the planner is based on the GraphPlan algorithm (for more details
+-- on the algorithm, see http://www.cs.cmu.edu/~avrim/graphplan.html). The
+-- first builds a planning graph and then tries to extract the path for
+-- all agents.
+--
+-- In the current implementation, the path extraction is implemented the
+-- simplest possible way by backtracking without caching conflicts
+-- discovered during plan extraction. Also, the detection of situations
+-- where no solution exists is implemented by limiting the depth of the
+-- graph with the number of cells on the map. This is not an effective
+-- bound (and I'm not quite sure it really is a bound, but it should work
+-- OK for most cases).
+
 module PathPlan where
 
 import Control.Monad
